@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hot Dog Delivery</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff6e0;--card:#fff;--ink:#3b1f10;--mut:#7a5a45;--red:#d62828;--yel:#ffb703;--line:#ecd9b0;--on-red:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#25140c;--card:#35200f;--ink:#fff1d6;--mut:#d3b48f;--line:#5a3a22}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:500 16px/1.4 Nunito,system-ui,sans-serif;min-height:100%;padding-bottom:90px}
+h1,h2,h3{font-family:'Baloo 2',sans-serif;margin:0;line-height:1.1}
+header{background:var(--red);color:var(--on-red);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header h1{font-size:26px;font-weight:800}
+header button{background:transparent;border:2px solid #fff;color:#fff;border-radius:20px;padding:4px 12px;font:700 14px Nunito}
+main{padding:16px;max-width:520px;margin:auto}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+h2{font-size:22px;margin-bottom:10px}
+label.opt{display:flex;align-items:center;gap:12px;padding:12px;border:2px solid var(--line);border-radius:12px;margin-bottom:8px;font-weight:700;cursor:pointer}
+label.opt:has(input:checked){border-color:var(--red);background:rgba(214,40,40,.1)}
+input[type=checkbox],input[type=radio]{width:22px;height:22px;accent-color:var(--red);flex:none}
+input[type=text],input[type=password],input[type=tel]{width:100%;padding:13px;border:2px solid var(--line);border-radius:12px;font:600 16px Nunito;background:var(--card);color:var(--ink);margin-bottom:10px}
+.btn{display:block;width:100%;background:var(--red);color:#fff;border:0;border-radius:14px;padding:15px;font:800 18px 'Baloo 2';cursor:pointer}
+.btn.alt{background:var(--yel);color:#3b1f10}
+.btn.ghost{background:transparent;color:var(--mut);border:2px solid var(--line)}
+:focus-visible{outline:3px solid var(--yel);outline-offset:2px}
+.qty{display:flex;align-items:center;justify-content:center;gap:18px;margin:12px 0}
+.qty button{width:46px;height:46px;border-radius:50%;border:0;background:var(--yel);color:#3b1f10;font:800 26px 'Baloo 2'}
+.qty span{font:800 28px 'Baloo 2';min-width:40px;text-align:center}
+.price{color:var(--mut);font-weight:700}
+.item{display:flex;gap:10px;align-items:flex-start;border-bottom:1px dashed var(--line);padding:10px 0}
+.item:last-child{border:0}
+.item .t{flex:1}.item b{font-family:'Baloo 2'}
+.trash{background:transparent;border:0;font-size:24px;padding:6px}
+.total{display:flex;justify-content:space-between;font:800 24px 'Baloo 2';margin:10px 0}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:2px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav button{flex:1;background:none;border:0;padding:12px;font:800 15px 'Baloo 2';color:var(--mut)}
+nav button.on{color:var(--red)}
+.badge{background:var(--red);color:#fff;border-radius:10px;padding:0 7px;margin-left:4px;font-size:13px}
+.err{color:var(--red);font-weight:700;margin:0 0 10px}
+.hide{display:none}
+.hero{text-align:center;padding:18px 0 6px}
+.hero .e{font-size:54px}
+</style>
+</head>
+<body>
+<header><h1>🌭 Hot Dog Delivery</h1><button id="out" class="hide">Sair</button></header>
+<main id="app"></main>
+<nav id="nav" class="hide"><button data-v="build">🌭 Montar</button><button data-v="cart">🛒 Carrinho<span class="badge" id="cnt">0</span></button></nav>
+
+<script>
+const WHATS="558499863991"; // número do WhatsApp que recebe os pedidos
+const PRECO=6;
+const CARNES=["Frango","Salsicha"];
+const RECHEIOS=["Ao molho","Creme de batata","Queijo ralado","Vinagrete","Dueto","Batata palha","Requeijão"];
+const mem={};
+const S={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return k in mem?mem[k]:d}},
+ set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){mem[k]=v}}};
+let user=S.get("hd_session",null), view="build", cart=[], qtd=1, sel={carnes:[],rech:[]};
+const $=s=>document.querySelector(s), app=$("#app");
+const brl=n=>"R$ "+n.toFixed(2).replace(".",",");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const loadCart=()=>{cart=S.get("hd_cart_"+user,[])};
+const saveCart=()=>S.set("hd_cart_"+user,cart);
+
+function render(){
+  $("#out").classList.toggle("hide",!user);
+  $("#nav").classList.toggle("hide",!user||view==="checkout"||view==="done");
+  if(!user) return login();
+  $("#cnt").textContent=cart.reduce((a,i)=>a+i.qtd,0);
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.v===view));
+  ({build,cart:cartView,checkout,done})[view]();
+}
+
+function login(mode="in",msg=""){
+  app.innerHTML=`<div class="hero"><div class="e">🌭</div><h2>${mode==="in"?"Entrar para pedir":"Criar minha conta"}</h2></div>
+  <div class="card"><p class="err">${msg}</p>
+  <input type="text" id="u" placeholder="Nome de usuário" autocapitalize="none" autocomplete="username">
+  <input type="password" id="p" placeholder="Senha" autocomplete="${mode==="in"?"current-password":"new-password"}">
+  <button class="btn" id="go">${mode==="in"?"Entrar":"Criar conta e entrar"}</button>
+  <p style="text-align:center;margin:14px 0 0"><button class="btn ghost" id="sw">${mode==="in"?"Não tenho conta. Criar uma":"Já tenho conta. Entrar"}</button></p></div>`;
+  $("#sw").onclick=()=>login(mode==="in"?"up":"in");
+  $("#go").onclick=()=>{
+    const u=$("#u").value.trim().toLowerCase(), p=$("#p").value;
+    if(!u||!p) return login(mode,"Preencha usuário e senha.");
+    const users=S.get("hd_users",{});
+    if(mode==="up"){
+      if(users[u]) return login(mode,"Esse usuário já existe. Escolha outro.");
+      users[u]=p; S.set("hd_users",users);
+    } else if(users[u]!==p) return login(mode,"Usuário ou senha incorretos. Se não tem conta, crie uma.");
+    user=u; S.set("hd_session",u); loadCart(); view="build"; render();
+  };
+}
+
+function build(){
+  app.innerHTML=`<div class="card"><h2>1. Escolha a carne</h2>
+   ${CARNES.map((c,i)=>`<label class="opt"><input type="checkbox" name="c" value="${c}" ${sel.carnes.includes(c)?"checked":""}>${c}</label>`).join("")}</div>
+  <div class="card"><h2>2. Escolha os recheios</h2>
+   ${RECHEIOS.map(c=>`<label class="opt"><input type="checkbox" name="r" value="${c}" ${sel.rech.includes(c)?"checked":""}>${c}</label>`).join("")}</div>
+  <div class="card"><h2>3. Quantos você quer?</h2>
+   <div class="qty"><button id="m" aria-label="Menos">−</button><span id="q">${qtd}</span><button id="pl" aria-label="Mais">+</button></div>
+   <p class="price" style="text-align:center;margin:0 0 12px">${brl(PRECO)} cada · <b id="sub">${brl(PRECO*qtd)}</b></p>
+   <p class="err" id="e"></p>
+   <button class="btn" id="add">Adicionar ao carrinho</button></div>`;
+  const sync=()=>{sel.carnes=[...document.querySelectorAll("[name=c]:checked")].map(x=>x.value);sel.rech=[...document.querySelectorAll("[name=r]:checked")].map(x=>x.value)};
+  document.querySelectorAll("input[type=checkbox]").forEach(x=>x.onchange=sync);
+  const upd=()=>{$("#q").textContent=qtd;$("#sub").textContent=brl(PRECO*qtd)};
+  $("#m").onclick=()=>{if(qtd>1){qtd--;upd()}};
+  $("#pl").onclick=()=>{qtd++;upd()};
+  $("#add").onclick=()=>{
+    sync();
+    if(!sel.carnes.length) return $("#e").textContent="Escolha pelo menos uma carne.";
+    cart.push({id:Date.now(),carnes:[...sel.carnes],rech:[...sel.rech],qtd});
+    saveCart(); sel={carnes:[],rech:[]}; qtd=1; view="cart"; render();
+  };
+}
+
+const total=()=>cart.reduce((a,i)=>a+i.qtd,0)*PRECO;
+
+function cartView(){
+  if(!cart.length){app.innerHTML=`<div class="card" style="text-align:center"><div class="hero e" style="font-size:48px">🛒</div><h2>Seu carrinho está vazio</h2><p class="price">Monte seu hot dog para começar.</p><button class="btn" id="b">Montar hot dog</button></div>`;
+    return $("#b").onclick=()=>{view="build";render()}}
+  app.innerHTML=`<div class="card"><h2>Seu carrinho</h2>
+   ${cart.map(i=>`<div class="item"><div class="t"><b>${i.qtd}x Hot dog de ${i.carnes.join(" + ")}</b><br><span class="price">${i.rech.length?i.rech.join(", "):"Sem recheios"}</span><br><b>${brl(i.qtd*PRECO)}</b></div>
+   <button class="trash" data-id="${i.id}" aria-label="Remover">🗑️</button></div>`).join("")}
+   <div class="total"><span>Total</span><span>${brl(total())}</span></div>
+   <button class="btn" id="cont">Continuar</button>
+   <div style="height:10px"></div><button class="btn alt" id="more">Montar outro hot dog</button></div>`;
+  document.querySelectorAll(".trash").forEach(b=>b.onclick=()=>{cart=cart.filter(i=>i.id!=b.dataset.id);saveCart();render()});
+  $("#cont").onclick=()=>{view="checkout";render()};
+  $("#more").onclick=()=>{view="build";render()};
+}
+
+function checkout(){
+  const d=S.get("hd_info_"+user,{});
+  app.innerHTML=`<div class="card"><h2>Seus dados</h2>
+  <p class="err" id="e"></p>
+  <input type="text" id="nome" placeholder="Seu nome" value="${esc(d.nome||"")}">
+  <input type="tel" id="tel" placeholder="Telefone" value="${esc(d.tel||"")}">
+  <input type="text" id="end" placeholder="Endereço (rua e bairro)" value="${esc(d.end||"")}">
+  <input type="text" id="num" placeholder="Número da casa" value="${esc(d.num||"")}">
+  <h3 style="margin:8px 0">Pagamento</h3>
+  ${["Pix","Cartão","Dinheiro"].map((p,i)=>`<label class="opt"><input type="radio" name="pg" value="${p}" ${i==0?"checked":""}>${p}</label>`).join("")}
+  <div class="total"><span>Total</span><span>${brl(total())}</span></div>
+  <button class="btn" id="fin">Finalizar pedido</button>
+  <div style="height:10px"></div><button class="btn ghost" id="vol">Voltar ao carrinho</button></div>`;
+  $("#vol").onclick=()=>{view="cart";render()};
+  $("#fin").onclick=()=>{
+    const v=id=>$("#"+id).value.trim(), nome=v("nome"),tel=v("tel"),end=v("end"),num=v("num");
+    if(!nome||!tel||!end||!num) return $("#e").textContent="Preencha todos os campos.";
+    S.set("hd_info_"+user,{nome,tel,end,num});
+    const pg=document.querySelector("[name=pg]:checked").value;
+    const n=S.get("hd_n",836)+1; S.set("hd_n",n);
+    const cod="#PEDIDO N"+n;
+    const linhas=cart.map(i=>`• ${i.qtd}x Hot dog de ${i.carnes.join(" + ")}\n   Recheios: ${i.rech.length?i.rech.join(", "):"nenhum"}`).join("\n");
+    const txt=`🌭 *HOT DOG DELIVERY*\n*${cod}*\n\n${linhas}\n\n*Total: ${brl(total())}*\nPagamento: ${pg}\n\nNome: ${nome}\nTelefone: ${tel}\nEndereço: ${end}, nº ${num}`;
+    cart=[]; saveCart(); view="done"; render();
+    $("#wa").href="https://wa.me/"+WHATS+"?text="+encodeURIComponent(txt);
+    $("#cod").textContent=cod;
+    window.open($("#wa").href,"_blank");
+  };
+}
+
+function done(){
+  app.innerHTML=`<div class="card" style="text-align:center"><div style="font-size:54px">✅</div><h2>Pedido pronto!</h2>
+  <p class="price">Seu comprovante <b id="cod"></b> foi aberto no WhatsApp. Aperte enviar lá para a gente receber.</p>
+  <a id="wa" class="btn alt" style="text-decoration:none" target="_blank" rel="noopener">Abrir WhatsApp de novo</a>
+  <div style="height:10px"></div><button class="btn" id="novo">Fazer novo pedido</button></div>`;
+  $("#novo").onclick=()=>{view="build";render()};
+}
+
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
+$("#out").onclick=()=>{user=null;S.set("hd_session",null);cart=[];view="build";render()};
+if(user) loadCart();
+render();
+</script>
+</body>
+</html>
